@@ -1,0 +1,45 @@
+{
+  "name": "rupa-sendmail-server",
+  "version": "1.0.0",
+  "description": "Send an email.",
+  "main": "index.js",
+  "scripts": {
+    "serve": "node ./src/index.js",
+    "test": "ava --verbose",
+    "coverage": "c8 ava --verbose"
+  },
+  "type": "module",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@koa/bodyparser": "^5.0.0",
+    "@koa/cors": "^4.0.0",
+    "ava": "^5.3.1",
+    "c8": "^8.0.1",
+    "dotenv": "^16.3.1",
+    "esmock": "^2.5.1",
+    "html-to-text": "^9.0.5",
+    "is-html": "^3.0.0",
+    "koa": "^2.14.2",
+    "sanitize-html": "^2.11.0",
+    "string-template": "^1.0.0"
+  },
+  "ava": {
+    "files": [
+      "./**/tests/*.js"
+    ],
+    "environmentVariables": {
+      "MAIL_SERVICE_NAME": "testservice",
+      "MAILGUN_CONFIG": "{ \"APIKey\": \"testApiKey\", \"endpoint\": \"testEndpoint\"}"
+    }
+  },
+  "c8": {
+    "all": true,
+    "include": [
+      "server/src/**/*.js"
+    ],
+    "exclude": [
+      "server/src/_mock/**/*.js"
+    ]
+  }
+}

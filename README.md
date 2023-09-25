@@ -37,7 +37,7 @@ The service is a simple API accepting json describing the message.
 
 ### --To Send Mail--
 **method:** POST  
-**path:** email  
+**path:** /  
 **parameters:** (none)  
 **payload/body:**  
 `{`  

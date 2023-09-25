@@ -1,10 +1,11 @@
 import test from "ava";
 import { valid as validMessage } from "./_mocks/messages.js";
 import esmock from "esmock";
-import { constructMessage } from "../src/sendmail.js";
+import { constructMessage } from "../src/utilities.js";
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '../.env.local' });
+
+dotenv.config({ path: './.env.local' });
 const mailServiceConfigurations = JSON.parse(process.env.MAIL_SERVICES);
 const defaultMailServiceConfig = mailServiceConfigurations[process.env.DEFAULT_MAIL_SERVICE_INDEX];
 
@@ -34,7 +35,7 @@ test('sendmail remote 400 error', async t => {
       fetch: async () => {
         const respPromise = new Promise((resolve, reject) => {
           const resolver = () => {
-            resolve({ status: 400, json: async () => ({ success: false }) });
+            resolve({ status: 400, statusText: `400 failure` });
           }
           setTimeout(resolver, 200);
         });
@@ -45,6 +46,8 @@ test('sendmail remote 400 error', async t => {
   const mockSendMail = await esmock(sendmailPath, mockConfig);
   const mailResp = await mockSendMail(validMessage);
   t.is(!!mailResp.error, true);
+  t.is(!!mailResp.error.code, true);
+  t.is(!!mailResp.error.message, true);
 });
 
 test('construct message', t => {

@@ -1,8 +1,7 @@
 import dotenv from 'dotenv';
-import { htmlToText } from 'html-to-text';
-import sanitizeHtml from 'sanitize-html';
-import isHTML from 'is-html';
 import interpolate from 'string-template';
+import { handleSendmailError } from './errors.js';
+import { constructMessage, cleanText, isTemplate, getBasicAuth } from './utilities.js';
 
 dotenv.config({ path: './.env.local' });
 const mailServiceConfigurations = JSON.parse(process.env.MAIL_SERVICES);
@@ -14,32 +13,27 @@ const sendmail = async message => {
   try {
     resp = await postMail(message, currentMailServiceConfig);
   } catch (e) {
-    if (e?.cause?.code === 'ECONNRESET' || e?.cause?.status === 401) {
-      if (switchService()) {
-        resp = sendmail(message, currentMailServiceConfig);
-      } else {
-        resp = {
-          error: {
-            message: 'All services failed. Please try again later.'
-          }
+    const [switchServiceCheck, errorResp] = handleSendmailError(e, currentMailServiceConfig);
+    if (switchServiceCheck && switchService()) {
+      resp = sendmail(message, currentMailServiceConfig);
+    } else if (switchServiceCheck) {
+      resp = {
+        error: {
+          message: 'All services failed. Please try again later.'
         }
       }
     } else {
-      resp = {
-        error: {
-          message: e.message || 'Unknown error.'
-        }
-      }
+      resp = { error: errorResp };
     }
   }
-  // if it fails, rotate to the next service
-  // when we hit the end of the services, return a fatal error message
   return resp;
 }
 
 const postMail = async (message, config) => {
   const { auth, parameters, contentType, endpoint } = config;
-  const messageConstructed = constructMessage(message, parameters);
+  const messageCopy = { ...message };
+  messageCopy.text = cleanText(messageCopy.text);
+  const messageConstructed = constructMessage(messageCopy, parameters);
   const messageToAttach = contentType === 'application/x-www-form-urlencoded'
     ? new URLSearchParams(messageConstructed).toString()
     : JSON.stringify(messageConstructed);
@@ -57,11 +51,11 @@ const postMail = async (message, config) => {
           headers[auth.name] = isTemplate(auth.value) ? interpolate(auth.value, config) : auth.value;
           break;
         default:
-          throw new Error('No auth header method supplied.');
+          throw new Error('No auth header method supplied.', { cause: { status: 400 } });
       }
       break;
     default:
-      throw new Error('Unknown auth type supplied.');
+      throw new Error('Unknown auth type supplied.', { cause: { status: 400 } });
   }
 
   const fetchConfig = {
@@ -72,18 +66,15 @@ const postMail = async (message, config) => {
 
   const mailResp = await fetch(endpoint, fetchConfig);
   const { status, statusText } = mailResp;
-
   const resp = {
     status,
     statusText
   }
 
-  if (status === 401) {
-    throw new Error('Unauthorized', { cause: { status, statusText } });
-  } else if (status === 200) {
-    resp.data = await mailResp.json();
+  if (status >= 400) {
+    throw new Error(`${config.name} post mail error`, { cause: resp });
   } else {
-    resp.error = await mailResp.json();
+    resp.data = await mailResp.json();
   }
   return resp;
 }
@@ -98,31 +89,5 @@ const switchService = () => {
   }
   return serviceSwitchSuccess;
 }
-
-export const constructMessage = (message, paramsTemplate) => {
-  const constructed = {};
-  const messageCopy = { ...message };
-  messageCopy.text = cleanText(message.text);
-  for (let key in paramsTemplate) {
-    constructed[key] = interpolate(paramsTemplate[key], messageCopy);
-  }
-  return constructed;
-}
-
-const cleanText = text => {
-  let cleanedText = text;
-  if (isHTML(text)) {
-    cleanedText = sanitizeHtml(cleanedText);
-    cleanedText = htmlToText(cleanedText);
-  }
-  return cleanedText;
-}
-
-const getBasicAuth = (user, pass) => {
-  const credentials = btoa(`${user}:${pass}`);
-}
-
-// Should be refactored to a utility.
-const isTemplate = str => (/{(.*?)\}/g).test(str);
 
 export default sendmail;

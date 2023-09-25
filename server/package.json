@@ -27,19 +27,15 @@
   "ava": {
     "files": [
       "./**/tests/*.js"
-    ],
-    "environmentVariables": {
-      "MAIL_SERVICE_NAME": "testservice",
-      "MAILGUN_CONFIG": "{ \"APIKey\": \"testApiKey\", \"endpoint\": \"testEndpoint\"}"
-    }
+    ]
   },
   "c8": {
     "all": true,
     "include": [
-      "server/src/**/*.js"
+      "tests/**/*.js"
     ],
     "exclude": [
-      "server/src/_mock/**/*.js"
+      "tests/_mock/**/*.js"
     ]
   }
 }
